@@ -47,14 +47,15 @@ F_USB = $(F_CPU)
 
 # Interrupt driven control endpoint task(+60)
 OPT_DEFS += -DINTERRUPT_CONTROL_ENDPOINT
+EXTRAFLAGS += -flto
 
 # Build Options
 #   change yes to no to disable
 #
-BOOTMAGIC_ENABLE = lite       # Virtual DIP switch configuration
+BOOTMAGIC_ENABLE = yes
 # MOUSEKEY_ENABLE = yes       # Mouse keys
 EXTRAKEY_ENABLE = yes       # Audio control and System control
-MOUSEKEY_ENABLE = no       # Mouse keys
+MOUSEKEY_ENABLE = yes       # Mouse keys
 # EXTRAKEY_ENABLE = no       # Audio control and System control
 # CONSOLE_ENABLE = yes        # Console for debug test
 CONSOLE_ENABLE = no        # Console for debug test
@@ -62,7 +63,7 @@ COMMAND_ENABLE = no        # Commands for debug and configuration
 # Do not enable SLEEP_LED_ENABLE. it uses the same timer as BACKLIGHT_ENABLE
 SLEEP_LED_ENABLE = no       # Breathing sleep LED during USB suspend
 # if this doesn't work, see here: https://github.com/tmk/tmk_keyboard/wiki/FAQ#nkro-doesnt-work
-NKRO_ENABLE = no            # USB Nkey Rollover
+NKRO_ENABLE = yes            # USB Nkey Rollover
 
 BACKLIGHT_ENABLE = yes       # Enable keyboard backlight functionality test
 BACKLIGHT_DRIVER = pwm # test
@@ -70,12 +71,13 @@ BACKLIGHT_DRIVER = pwm # test
 
 RGBLIGHT_ENABLE = no        # Enable keyboard RGB underglow
 MIDI_ENABLE = no            # MIDI support
-BLUETOOTH = AdafruitBLE       # Enable Bluetooth with the Adafruit EZ-Key HID
+BLUETOOTH_DRIVER = AdafruitBLE       # Enable Bluetooth with the Adafruit EZ-Key HID
+BLUETOOTH_ENABLE = yes
 AUDIO_ENABLE = no           # Audio output
 FAUXCLICKY_ENABLE = no      # Use buzzer to emulate clicky switches
 HD44780_ENABLE = no         # Enable support for HD44780 based LCDs
 
-DEBOUNCE_TYPE = eager_pr
+DEBOUNCE_TYPE = sym_eager_pr
 CUSTOM_MATRIX    = yes
 
 # SRC += analog.c
@@ -86,7 +88,7 @@ SRC += matrix.c \
 	   
 QUANTUM_LIB_SRC += i2c_master.c
 
-VIA_ENABLE = yes
+VIA_ENABLE = no
 
 # BOOTLOADER = halfkay
 

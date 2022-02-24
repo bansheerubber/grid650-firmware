@@ -61,34 +61,35 @@ enum my_keycodes {
   ORANGE
 };
 
-#ifdef LED_DEBUG
-enum LED_STAT{
+enum LED_STAT {
+  NONE,
+  IGNORE,
   RED_BLINK,
   WHITE_BREATHING,
   WHITE_ON,  
   BLE_ON,
-  ORANGE_ON  
+  ORANGE_ON
 };
 
-void set_status_led(enum LED_STAT led_stat,enum LED_STAT current_stat);
-#endif
+void set_status_led(enum LED_STAT led_stat);
+void set_led_real(enum LED_STAT bluetooth_stat, enum LED_STAT user_stat);
 
 // BLE keymap for user
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* Base */
     [_BASE] = LAYOUT(
-        KC_GESC,    KC_1,   KC_2,   KC_3,   KC_4,   KC_5,   KC_6,   KC_7,   KC_8,   KC_9,   KC_0,   KC_MINS,    KC_EQL, KC_GRV, KC_BSPC,    KC_BSPC,
-        KC_TAB,     KC_Q,   KC_W,   KC_E,   KC_R,   KC_T,   KC_Y,   KC_U,   KC_I,   KC_O,   KC_P,   KC_LBRC,    KC_RBRC,KC_BSLS,KC_PGUP,    KC_DEL,     
-        KC_CAPS,    KC_A,   KC_S,   KC_D,   KC_F,   KC_G,   KC_H,   KC_J,   KC_K,   KC_L,   KC_SCLN,KC_QUOT,    KC_BSLS,KC_ENT, KC_PGDN,
-        KC_LSFT,    KC_NUBS,KC_Z,   KC_X,   KC_C,   KC_V,   KC_B,   KC_N,   KC_M,   KC_COMM,KC_DOT, KC_SLSH,    KC_RSFT,KC_UP,  MO(_FN),
-        KC_LCTL,    KC_LGUI,KC_LALT,KC_NO,  KC_NO,  KC_SPACE,KC_NO, KC_NO,  KC_NO,  KC_RALT,KC_RGUI,KC_RCTL,    KC_LEFT,KC_DOWN,KC_RGHT,
+        KC_ESC,    KC_1,   KC_2,   KC_3,   KC_4,   KC_5,   KC_6,   KC_7,   KC_8,   KC_9,   KC_0,   KC_MINS,    KC_EQL, KC_GRV, KC_BSPC,    KC_BSPC,
+        KC_TAB,     KC_Q,   KC_W,   KC_E,   KC_R,   KC_T,   KC_Y,   KC_U,   KC_I,   KC_O,   KC_P,   KC_LBRC,    KC_RBRC,KC_BSLS,KC_DEL,    KC_GRV,     
+        KC_CAPS,    KC_A,   KC_S,   KC_D,   KC_F,   KC_G,   KC_H,   KC_J,   KC_K,   KC_L,   KC_SCLN,KC_QUOT,    KC_BSLS,KC_ENT, KC_PGUP,
+        KC_LSFT,    KC_NUBS,KC_Z,   KC_X,   KC_C,   KC_V,   KC_B,   KC_N,   KC_M,   KC_COMM,KC_DOT, KC_SLSH,    KC_RSFT,KC_UP,  KC_PGDN,
+        KC_LCTL,    KC_LGUI,KC_LALT,KC_NO,  KC_NO,  KC_SPACE,KC_NO, KC_NO,  KC_NO,  MO(_FN),KC_RALT,KC_RCTL,    KC_LEFT,KC_DOWN,KC_RGHT,
         KC_F1,      KC_F2,  KC_F3,  KC_F4
     ),
     [_FN] = LAYOUT(
         KC_GRV,     KC_F1,  KC_F2,  KC_F3,  KC_F4,  KC_F5,  KC_F6,  KC_F7,  KC_F8,  KC_F9,  KC_F10, KC_F11,     KC_F12, KC_F13  ,KC_DEL,     KC_DEL,
-        BLE_DFU,    KC_BTN1,KC_MS_U,KC_BTN2,_______,_______,_______,OUT_USB,_______,_______,_______,_______,    _______,_______,KC_HOME,    KC_BSPC,
-        _______,    KC_MS_L,KC_MS_D,KC_MS_R,_______,_______,OUT_AUTO,_______,_______,_______,_______,_______,   _______,_______,KC_END,
-        _______,    _______,_______,_______,_______,_______,OUT_BT,  _______,_______,_______,_______,_______,   _______,KC_VOLU,KC_INS,
+        BLE_DFU,    KC_BTN1,KC_MS_U,KC_BTN2,_______,_______,_______,OUT_USB,_______,_______,_______,_______,    _______,_______,_______,    KC_PSCR,
+        _______,    KC_MS_L,KC_MS_D,KC_MS_R,_______,_______,OUT_AUTO,_______,_______,_______,_______,_______,   _______,_______,KC_HOME,
+        _______,    _______,_______,_______,_______,_______,OUT_BT,  _______,_______,_______,_______,_______,   _______,KC_VOLU,KC_END,
         _______,    _______,_______,_______,_______,_______,_______, _______,_______,_______,_______,_______,   KC_MPRV,KC_VOLD,KC_MNXT,
         _______,    _______,_______,_______        
     )
@@ -134,93 +135,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 uint8_t orange_led = 1;
 uint8_t red_led = 1;
 uint8_t ble_led = 1;
+bool lalt_home_modifier = false;
+bool tab_key = false;
+uint8_t alt_tab_state = 0;
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    #ifdef LED_DEBUG
-    static enum LED_STAT current_stat = WHITE_BREATHING;
-    #endif
-
     switch (keycode) {
-        // case LED_RED:
-        //     if (record->event.pressed) {
-        //         // Do something when pressed
-        //         PORTB |= (1 << 0);
-        //     } else {
-        //         // Do something else when release
-        //     }
-        //     return true; 
-        // case KC_E:
-        //     if (record->event.pressed) {
-        //         // Do something when pressed
-        //         PORTB &= ~(1 << 0);
-        //     } else {
-        //         // Do something else when release
-        //     }
-        //     return true; 
-        #ifdef LED_DEBUG
-        case ORANGE:
-        if (record->event.pressed) {                
-            set_status_led(ORANGE_ON,current_stat);
-            current_stat = ORANGE_ON;
-            // xprintf("current stat = %d\n",current_stat);
-
-        } else {
-            // Do something else when release
-        }
-            return true;
-        case BREATHING:
-        if (record->event.pressed) {
-            set_status_led(WHITE_BREATHING,current_stat);
-            current_stat = WHITE_BREATHING;
-            // xprintf("current stat = %d\n",current_stat);
-        } else {
-            // Do something else when release
-        }
-            return true;    
-        case ON:
-        if (record->event.pressed) {
-            set_status_led(WHITE_ON,current_stat);
-            current_stat = WHITE_ON;
-            // xprintf("current stat = %d\n",current_stat);
-        } else {
-            // Do something else when release
-        }
-            return true;    
-        case RED:
-        if (record->event.pressed) {
-            set_status_led(RED_BLINK,current_stat);
-            current_stat = RED_BLINK;
-            // xprintf("current stat = %d\n",current_stat);
-        } else {
-            // Do something else when release
-        }
-            return true; 
-        case BLUE:
-        if (record->event.pressed) {
-            set_status_led(BLE_ON,current_stat);
-            current_stat = BLE_ON;
-            // xprintf("current stat = %d\n",current_stat);
-        } else {
-            // Do something else when release
-        }
-            return true;     
-                 
-        case LED_BLE:
-        if (record->event.pressed) {                
-            if(ble_led) {
-                ble_led = 0;
-                print("BLE LED OFF\n");
-                adafruit_ble_set_mode_leds(0);
-            } else {
-                ble_led = 1;
-                print("BLE LED ON\n");
-                adafruit_ble_set_mode_leds(1);                                
-            }
-        } else {
-            // Do something else when release
-        }
-            return true; 
-        #endif   
         case BLE_PWR_OFF:
         if (record->event.pressed) {
             
@@ -272,6 +192,78 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         //         PLAY_NOTE_ARRAY(tone_qwerty);
         //     }
         //     return true; // Let QMK send the enter press/release events
+
+        case KC_LALT: {
+            if (record->event.pressed) {
+                lalt_home_modifier = true;
+            }
+            else {
+                lalt_home_modifier = false;
+            }
+
+            if(alt_tab_state != 0) {
+                unregister_code(KC_LALT);
+            }
+
+            return false;
+        }
+
+        case KC_RIGHT: {
+            if (lalt_home_modifier && record->event.pressed) {
+                tap_code16(KC_END);
+                return false;
+            }
+            return true;
+        }
+
+        case KC_LEFT: {
+            if (lalt_home_modifier && record->event.pressed) {
+                tap_code16(KC_HOME);
+                return false;
+            }
+            return true;
+        }
+
+        case KC_TAB: {
+            if (record->event.pressed) {
+                tab_key = true;
+
+                if(lalt_home_modifier && (alt_tab_state == 0 || alt_tab_state == 2)) {
+                    register_code(KC_LALT);
+                    alt_tab_state = 1;
+                }
+            }
+            else {
+                tab_key = false;
+
+                if(alt_tab_state == 1) { // go into state 2
+                    alt_tab_state = 2;
+                }
+            }
+
+            return true;
+        }
+
+        // alt keybinds that we want to keep
+        case KC_0:
+        case KC_1:
+        case KC_2:
+        case KC_3:
+        case KC_4:
+        case KC_5:
+        case KC_6:
+        case KC_7:
+        case KC_8:
+        case KC_9: {
+            if (lalt_home_modifier && record->event.pressed) {
+                register_code(KC_LALT);
+                tap_code16(keycode);
+                unregister_code(KC_LALT);
+                return false;
+            }
+            return true;
+        }
+
         default:
             return true; // Process all other keycodes normally
     }

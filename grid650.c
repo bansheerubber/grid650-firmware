@@ -56,16 +56,14 @@ int batt_level = 50;
 
 enum LED_STAT {
   NONE,
+  IGNORE,
   RED_BLINK,
+  RED_ON,
   WHITE_BREATHING,
   WHITE_ON,  
   BLE_ON,
   ORANGE_ON  
 };
-
-#ifdef LED_CONTROL
-enum LED_STAT curr_stat = NONE;
-#endif
 
 void keyboard_pre_init_user(void) {
   // Call the keyboard pre init code.
@@ -127,12 +125,10 @@ void keyboard_post_init_user(void) {
 
 #ifdef LED_CONTROL
 
-void set_status_led(enum LED_STAT led_stat,enum LED_STAT current_stat){
+void set_status_led(enum LED_STAT led_stat){
+    static enum LED_STAT current_stat = NONE;
+    
     static bool red_is_on = false;
-    xprintf("led stat = %d\n",led_stat);
-    xprintf("bklt_level = %d\n",get_backlight_level());
-    xprintf("is_breathing = %d\n",is_breathing());
-    // if((led_stat == current_stat) && (led_stat != RED_BLINK)){
     if(led_stat == current_stat){
         //led stats not changed
         //stat not red blink
@@ -149,11 +145,10 @@ void set_status_led(enum LED_STAT led_stat,enum LED_STAT current_stat){
             }
         }
         else if(led_stat == WHITE_BREATHING){
-            if(is_breathing() && get_backlight_level()){
+            if(get_backlight_level()){
                 //normal nothing to do
 
             }else{
-                breathing_enable();
                 backlight_level_noeeprom(1); 
             }
             
@@ -165,7 +160,6 @@ void set_status_led(enum LED_STAT led_stat,enum LED_STAT current_stat){
             case NONE:{
                 //start up 
                 PORTB &= ~(1 << 5); //set red low
-                breathing_disable();
                 backlight_level_noeeprom(0); //turn off white
                 adafruit_ble_set_mode_leds(0);//turn off ble
             }
@@ -175,10 +169,12 @@ void set_status_led(enum LED_STAT led_stat,enum LED_STAT current_stat){
                 red_is_on = false;
 
             }break;
+            case RED_ON: {
+                PORTB &= ~(1 << 5);
+            }break;
             case WHITE_BREATHING:{
                 //stop breathing
                 //turn off white led
-                breathing_disable();
                 backlight_level_noeeprom(0);           
             }break;
             case WHITE_ON:{
@@ -201,7 +197,6 @@ void set_status_led(enum LED_STAT led_stat,enum LED_STAT current_stat){
         switch(led_stat){
             case NONE:{
                 PORTB &= ~(1 << 5); //set red low
-                breathing_disable();
                 backlight_level_noeeprom(0); //turn off white
                 adafruit_ble_set_mode_leds(0);//turn off ble
             }break;
@@ -212,15 +207,16 @@ void set_status_led(enum LED_STAT led_stat,enum LED_STAT current_stat){
                 red_is_on = true;
 
             }break;
+            case RED_ON: {
+                PORTB |= 1 << 5;
+            }break;
             case WHITE_BREATHING:{
                 //enable breathing
-                breathing_enable();
                 backlight_level_noeeprom(1);  
             }break;
             case WHITE_ON:{
                 //stop breathing
                 //turn on white led
-                breathing_disable();
                 backlight_level_noeeprom(1);  
             }break;
             case BLE_ON:{
@@ -235,6 +231,26 @@ void set_status_led(enum LED_STAT led_stat,enum LED_STAT current_stat){
         }
     }
     
+}
+
+void set_led_real(enum LED_STAT bluetooth_stat, enum LED_STAT user_stat) {
+    static enum LED_STAT bluetooth_stat_persistant = NONE;
+    static enum LED_STAT user_stat_persistant = NONE;
+
+    if (bluetooth_stat != IGNORE) {
+        bluetooth_stat_persistant = bluetooth_stat;
+    }
+
+    if (user_stat != IGNORE) {
+        user_stat_persistant = user_stat;
+    }
+
+    if (user_stat_persistant != NONE) {
+        set_status_led(user_stat_persistant);
+    }
+    else {
+        set_status_led(bluetooth_stat_persistant);
+    }
 }
 
 #endif
@@ -469,21 +485,16 @@ void matrix_scan_kb(void) {
 
         #ifdef LED_CONTROL
 
-        // static enum LED_STAT curr_stat = NONE;  
-        // xprintf("BLE PWR STAT:%d\n",ble_pwr_on);
-       
         if((PIND & 0b00001000) == 0){
             //is charging
             //if batlevel over threthold white on
             //if batlevel not over threthold orange on
-            set_status_led(ORANGE_ON,curr_stat);
-            curr_stat = ORANGE_ON;
+            set_led_real(ORANGE_ON, IGNORE);
         }else{  
             #ifdef ENABLE_SLEEP
             if(sleep_flag){
                 //sleeping turn off all leds
-                set_status_led(NONE,curr_stat);
-                curr_stat = NONE;
+                set_led_real(NONE, IGNORE);
             } else 
             #endif
             //not charging                 
@@ -491,24 +502,20 @@ void matrix_scan_kb(void) {
             if((batt_level <= 15) && ((PIND & 0b10000000) == 0)){                
                 //if batlevel less than low battery threthold red blink
                 //and usb is not connected (in case battery not connected)
-                set_status_led(RED_BLINK,curr_stat);
-                curr_stat = RED_BLINK;
+                set_led_real(RED_BLINK, IGNORE);
             }else{
                 //else batlevel ok               
                 switch(where_to_send()){
                     case OUTPUT_USB: {
-                        set_status_led(WHITE_ON,curr_stat);
-                        curr_stat = WHITE_ON;                        
+                        set_led_real(WHITE_ON, IGNORE);
                     }break;                        
                     case OUTPUT_BLUETOOTH: {
                         if(adafruit_ble_is_connected()){
                             //ble connected enable white breathing
-                            set_status_led(WHITE_BREATHING,curr_stat);
-                            curr_stat = WHITE_BREATHING;
+                            set_led_real(WHITE_BREATHING, IGNORE);
                         }else{
                             //ble not connected enable blue blink 
-                            set_status_led(BLE_ON,curr_stat);
-                            curr_stat = BLE_ON;                            
+                            set_led_real(BLE_ON, IGNORE);
                         }                              
                     }
                     break;
@@ -555,8 +562,7 @@ void matrix_scan_kb(void) {
             // breathing_disable();
             // backlight_disable();     
 
-            set_status_led(NONE,curr_stat);
-            curr_stat = NONE;
+            set_led_real(NONE, IGNORE);
 
             // PORTB &= ~(1 << 7); //turn off led orange        
 
@@ -607,23 +613,11 @@ bool led_update_kb(led_t led_state) {
 */
 
 void led_set_user(uint8_t usb_led) {
-  // DDRB |= (1 << 0);
-  //DDRD |= (1 << 6) | (1 << 7);
-
-  #ifndef BLE_ENABLE
-
   if (usb_led & (1 << USB_LED_CAPS_LOCK)) {
-    //set white led low
-    PORTB &= ~(1 << 6);   //set low
-    //set orange led high
-    PORTB |= (1 << 7); //set high
+    set_led_real(IGNORE, RED_ON);
   } else {
-    //set orange led low
-    PORTB &= ~(1 << 7); //set low
-    //set white led high
-    PORTB |= 1 << 6;   //set high
+    set_led_real(IGNORE, NONE);
   }
-  #endif
 }
 
 void suspend_power_down_kb(void)
